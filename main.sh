@@ -35,10 +35,8 @@ read_entry() {
     ENTRY_FILE="$ENTRY_DIR/$ENTRY_DATE.txt"
     if [ -f "$ENTRY_FILE" ]; then
         echo "Entry for $ENTRY_DATE:"
-        # Add color to time while displaying the content
         while IFS= read -r line; do
             if [[ "$line" == Time:* ]]; then
-                # Make the time green
                 echo "\033[0;32m$line\033[0m"
             else
                 echo "$line"
