@@ -35,7 +35,15 @@ read_entry() {
     ENTRY_FILE="$ENTRY_DIR/$ENTRY_DATE.txt"
     if [ -f "$ENTRY_FILE" ]; then
         echo "Entry for $ENTRY_DATE:"
-        cat "$ENTRY_FILE"
+        # Add color to time while displaying the content
+        while IFS= read -r line; do
+            if [[ "$line" == Time:* ]]; then
+                # Make the time green
+                echo "\033[0;32m$line\033[0m"
+            else
+                echo "$line"
+            fi
+        done < "$ENTRY_FILE"
     else
         echo "No entry found for $ENTRY_DATE."
     fi
@@ -43,13 +51,19 @@ read_entry() {
 
 write_entry() {
     ENTRY_FILE="$ENTRY_DIR/$TODAY.txt"
+    
     echo "Writing entry for $TODAY, $DAY_OF_WEEK"
     echo "Type your entry. Press Ctrl+D when finished."
     ENTRY_CONTENT=$(cat)
+    
     if [ -z "$ENTRY_CONTENT" ]; then
         echo "No content entered. Entry not saved."
         exit 1
     fi
+    
+    # Capture the current time in 12-hour format with AM/PM and append it
+    CURRENT_TIME=$(date +"%I:%M %p")
+    echo "Time: $CURRENT_TIME" >> "$ENTRY_FILE"
     echo "$ENTRY_CONTENT" >> "$ENTRY_FILE"
     echo "Entry saved."
 }
@@ -78,6 +92,7 @@ search_entries() {
     grep -ri --color=always "$KEYWORD" "$ENTRY_DIR"
 }
 
+# Main logic
 if [ "$#" -eq 0 ]; then
     write_entry
     exit 0
