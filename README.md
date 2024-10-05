@@ -1,5 +1,7 @@
 Installation:
 
-brew tap dhruv-gambhir/journal \n
+
+brew tap dhruv-gambhir/journal
+
 brew install journal
 
