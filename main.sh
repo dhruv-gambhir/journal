@@ -37,7 +37,7 @@ read_entry() {
         echo "Entry for $ENTRY_DATE:"
         while IFS= read -r line; do
             if [[ "$line" == Time:* ]]; then
-                echo "\033[0;32m$line\033[0m"
+                echo -e "\033[0;32m$line\033[0m"
             else
                 echo "$line"
             fi
