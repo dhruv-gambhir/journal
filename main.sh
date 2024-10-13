@@ -1,89 +1,163 @@
 #!/bin/bash
 
+# Exit immediately if a command exits with a non-zero status.
+set -e
+
+# Function to handle unexpected errors
+error_exit() {
+    echo "${RED}Error: $1${RESET}" >&2
+    exit 1
+}
+
+# Check if the terminal supports colors
+if command -v tput >/dev/null 2>&1; then
+    ncolors=$(tput colors)
+fi
+
+if [ -t 1 ] && [ -n "$ncolors" ] && [ "$ncolors" -ge 8 ]; then
+    # Define color variables
+    RED=$(tput setaf 1)
+    GREEN=$(tput setaf 2)
+    YELLOW=$(tput setaf 3)
+    BLUE=$(tput setaf 4)
+    MAGENTA=$(tput setaf 5)
+    CYAN=$(tput setaf 6)
+    WHITE=$(tput setaf 7)
+    BOLD=$(tput bold)
+    RESET=$(tput sgr0)
+else
+    # Define empty variables if no color support
+    RED=""
+    GREEN=""
+    YELLOW=""
+    BLUE=""
+    MAGENTA=""
+    CYAN=""
+    WHITE=""
+    BOLD=""
+    RESET=""
+fi
+
 ENTRY_DIR="entries"
-mkdir -p "$ENTRY_DIR"
+mkdir -p "$ENTRY_DIR" || error_exit "Failed to create directory '$ENTRY_DIR'. Check permissions."
+
 TODAY=$(date +"%d-%m-%Y")
 DAY_OF_WEEK=$(date +"%A")
 
 display_help() {
-    echo "Welcome to your journal!"
-    echo "Today is: $TODAY, $DAY_OF_WEEK"
-    echo "Use --help for commands"
-    echo "Available commands:"
-    echo "  --help                 Show this help message"
-    echo "  --list                 List all journal entries"
-    echo "  --read [DATE]          Read the journal entry for the specified date (format: DD-MM-YYYY)"
-    echo "  --delete [DATE]        Delete the journal entry for the specified date"
-    echo "  --search [KEYWORD]     Search entries for a keyword"
+    printf "${GREEN}Welcome to your journal!${RESET}\n"
+    printf "${CYAN}Today is: ${YELLOW}%s, %s${RESET}\n" "$TODAY" "$DAY_OF_WEEK"
+    printf "${GREEN}Use -help for commands${RESET}\n"
+    printf "${MAGENTA}Available commands:${RESET}\n"
+    printf "  ${BLUE}-help${RESET}            Show this help message\n"
+    printf "  ${BLUE}-ls${RESET}              List all journal entries\n"
+    printf "  ${BLUE}-r [DATE]${RESET}        Read the journal entry for the specified date (format: DD-MM-YYYY). If no date is provided, defaults to today.\n"
+    printf "  ${BLUE}-d [DATE]${RESET}        Delete the journal entry for the specified date\n"
+    printf "  ${BLUE}-s [KEYWORD]${RESET}     Search entries for a keyword\n"
 }
 
 list_entries() {
-    echo "Available entries:"
+    printf "${GREEN}Available entries:${RESET}\n"
+    local found=0
     for entry in "$ENTRY_DIR"/*.txt; do
         [ -e "$entry" ] || continue
         ENTRY_DATE=$(basename "$entry" .txt)
-        echo "$ENTRY_DATE"
+        printf "  ${YELLOW}%s${RESET}\n" "$ENTRY_DATE"
+        found=1
     done
+    if [ "$found" -eq 0 ]; then
+        printf "${YELLOW}No entries found.${RESET}\n"
+    fi
 }
 
 read_entry() {
     ENTRY_DATE="$1"
+
+    # If no date is provided, default to today
     if [ -z "$ENTRY_DATE" ]; then
-        echo "Please provide a date for the entry to read. Format: DD-MM-YYYY"
-        exit 1
+        ENTRY_DATE="$TODAY"
     fi
+
     ENTRY_FILE="$ENTRY_DIR/$ENTRY_DATE.txt"
+
     if [ -f "$ENTRY_FILE" ]; then
-        echo "Entry for $ENTRY_DATE:"
+        printf "${GREEN}Entry for %s:${RESET}\n\n" "$ENTRY_DATE"
         while IFS= read -r line; do
-                echo "$line"
+            printf "${WHITE}%s${RESET}\n" "$line"
         done < "$ENTRY_FILE"
     else
-        echo "No entry found for $ENTRY_DATE."
+        printf "${RED}No entry found for %s.${RESET}\n" "$ENTRY_DATE"
     fi
 }
 
 write_entry() {
     ENTRY_FILE="$ENTRY_DIR/$TODAY.txt"
-    
-    echo "Writing entry for $TODAY, $DAY_OF_WEEK"
-    echo "Type your entry. Press Ctrl+D when finished."
-    ENTRY_CONTENT=$(cat)
-    
+
+    printf "${GREEN}Writing entry for %s, %s${RESET}\n" "$TODAY" "$DAY_OF_WEEK"
+    printf "${CYAN}Type your entry. Type 'end' on a new line when finished.${RESET}\n"
+
+    ENTRY_CONTENT=""
+
+    while IFS= read -r line
+    do
+        if [[ "$line" == "end" ]]; then
+            break
+        fi
+        ENTRY_CONTENT+="$line"$'\n'
+    done
+
     if [ -z "$ENTRY_CONTENT" ]; then
-        echo "No content entered. Entry not saved."
+        printf "${YELLOW}No content entered. Entry not saved.${RESET}\n"
         exit 1
     fi
-    
+
     # Capture the current time in 12-hour format with AM/PM and append it
     CURRENT_TIME=$(date +"%I:%M %p")
-    echo "Time: $CURRENT_TIME" >> "$ENTRY_FILE"
-    echo "$ENTRY_CONTENT" >> "$ENTRY_FILE"
-    echo "Entry saved."
+    {
+        printf "${MAGENTA}Time: %s${RESET}\n" "$CURRENT_TIME"
+        printf "%s" "$ENTRY_CONTENT"
+        printf "\n"  # **Added New Line After Each Entry**
+    } >> "$ENTRY_FILE" || error_exit "Failed to write to '$ENTRY_FILE'."
+
+    printf "${GREEN}Entry saved.${RESET}\n"
 }
 
 delete_entry() {
     ENTRY_DATE="$1"
     if [ -z "$ENTRY_DATE" ]; then
-        echo "Please provide a date for the entry to delete. Format: DD-MM-YYYY"
+        printf "${RED}Please provide a date for the entry to delete. Format: DD-MM-YYYY${RESET}\n"
         exit 1
     fi
     ENTRY_FILE="$ENTRY_DIR/$ENTRY_DATE.txt"
     if [ -f "$ENTRY_FILE" ]; then
-        rm "$ENTRY_FILE"
-        echo "Entry for $ENTRY_DATE deleted."
+        # Confirm deletion
+        printf "${YELLOW}Are you sure you want to delete the entry for %s? (y/N): ${RESET}" "$ENTRY_DATE"
+        read -r confirmation
+        case "$confirmation" in
+            [yY][eE][sS]|[yY])
+                rm "$ENTRY_FILE" && printf "${GREEN}Entry for %s deleted.${RESET}\n" "$ENTRY_DATE" || error_exit "Failed to delete '$ENTRY_FILE'."
+                ;;
+            *)
+                printf "${CYAN}Deletion cancelled.${RESET}\n"
+                ;;
+        esac
     else
-        echo "No entry found for $ENTRY_DATE."
+        printf "${RED}No entry found for %s.${RESET}\n" "$ENTRY_DATE"
     fi
 }
 
 search_entries() {
     KEYWORD="$1"
     if [ -z "$KEYWORD" ]; then
-        echo "Please provide a keyword to search for."
+        printf "${RED}Please provide a keyword to search for.${RESET}\n"
         exit 1
     fi
-    grep -ri --color=always "$KEYWORD" "$ENTRY_DIR"
+    printf "${GREEN}Searching for \"%s\" in entries:${RESET}\n" "$KEYWORD"
+    if grep -ri --color=always "$KEYWORD" "$ENTRY_DIR"; then
+        :
+    else
+        printf "${YELLOW}No matches found for \"%s\".${RESET}\n" "$KEYWORD"
+    fi
 }
 
 # Main logic
@@ -93,23 +167,24 @@ if [ "$#" -eq 0 ]; then
 fi
 
 case "$1" in
-    --help)
+    -help)
         display_help
         ;;
-    --list)
+    -ls)
         list_entries
         ;;
-    --read)
+    -r)
+        # Pass the second argument if provided, else pass empty string
         read_entry "$2"
         ;;
-    --delete)
+    -d)
         delete_entry "$2"
         ;;
-    --search)
+    -s)
         search_entries "$2"
         ;;
     *)
-        echo "Invalid option. Use --help for available commands."
+        printf "${RED}Invalid option. Use -help for available commands.${RESET}\n"
         ;;
 esac
 
