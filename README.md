@@ -20,7 +20,7 @@ brew install journal
 Once installed, you can start using the journal CLI. To see the available commands, run:
 
 ```bash
-journal --help
+journal -help
 ```
 
 This will display a list of available options and commands for the journal application.
