@@ -51,7 +51,7 @@ display_help() {
     printf "${MAGENTA}Available commands:${RESET}\n"
     printf "  ${BLUE}-help${RESET}            Show this help message\n"
     printf "  ${BLUE}-ls${RESET}              List all journal entries\n"
-    printf "  ${BLUE}-r [DATE]${RESET}        Read the journal entry for the specified date (format: DD-MM-YYYY). If no date is provided, defaults to today.\n"
+    printf "  ${BLUE}-r [DATE]${RESET}        Read the journal entry for the specified date(defaults to today).\n"
     printf "  ${BLUE}-d [DATE]${RESET}        Delete the journal entry for the specified date\n"
     printf "  ${BLUE}-s [KEYWORD]${RESET}     Search entries for a keyword\n"
 }
@@ -146,6 +146,25 @@ delete_entry() {
     fi
 }
 
+edit_entry() {
+    ENTRY_DATE="$1"
+
+    # Default to today's entry if no date is provided
+    if [ -z "$ENTRY_DATE" ]; then
+        ENTRY_DATE="$TODAY"
+    fi
+
+    ENTRY_FILE="$ENTRY_DIR/$ENTRY_DATE.txt"
+
+    if [ -f "$ENTRY_FILE" ]; then
+        # Open the entry file with the default editor (use $EDITOR or fallback to nano)
+        "${EDITOR:-nano}" "$ENTRY_FILE" || error_exit "Failed to open editor for '$ENTRY_FILE'."
+        printf "${GREEN}Entry for %s updated.${RESET}\n" "$ENTRY_DATE"
+    else
+        printf "${RED}No entry found for %s.${RESET}\n" "$ENTRY_DATE"
+    fi
+}
+
 search_entries() {
     KEYWORD="$1"
     if [ -z "$KEYWORD" ]; then
@@ -167,21 +186,24 @@ if [ "$#" -eq 0 ]; then
 fi
 
 case "$1" in
-    -help)
+    -help | -h)
         display_help
         ;;
-    -ls)
+    -ls | -list)
         list_entries
         ;;
-    -r)
+    -r | -read)
         # Pass the second argument if provided, else pass empty string
         read_entry "$2"
         ;;
-    -d)
+    -d | delete)
         delete_entry "$2"
         ;;
-    -s)
+    -s | search)
         search_entries "$2"
+        ;;
+    -e | -editor)
+        edit_entry "$2"
         ;;
     *)
         printf "${RED}Invalid option. Use -help for available commands.${RESET}\n"
