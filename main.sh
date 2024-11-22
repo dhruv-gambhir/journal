@@ -49,7 +49,7 @@ display_help() {
     printf "${CYAN}Today is: ${YELLOW}%s, %s${RESET}\n" "$TODAY" "$DAY_OF_WEEK"
     printf "${GREEN}Use -help for commands${RESET}\n"
     printf "${MAGENTA}Available commands:${RESET}\n"
-    printf "  ${BLUE}-help${RESET}            Show this help message\n"
+    printf "  ${BLUE}-h${RESET}               Show this help message\n"
     printf "  ${BLUE}-ls${RESET}              List all journal entries\n"
     printf "  ${BLUE}-r [DATE]${RESET}        Read the journal entry for the specified date(defaults to today).\n"
     printf "  ${BLUE}-d [DATE]${RESET}        Delete the journal entry for the specified date\n"
@@ -73,7 +73,6 @@ list_entries() {
 read_entry() {
     ENTRY_DATE="$1"
 
-    # If no date is provided, default to today
     if [ -z "$ENTRY_DATE" ]; then
         ENTRY_DATE="$TODAY"
     fi
@@ -111,7 +110,6 @@ write_entry() {
         exit 1
     fi
 
-    # Capture the current time in 12-hour format with AM/PM and append it
     CURRENT_TIME=$(date +"%I:%M %p")
     {
         printf "${MAGENTA}Time: %s${RESET}\n" "$CURRENT_TIME"
@@ -130,7 +128,6 @@ delete_entry() {
     fi
     ENTRY_FILE="$ENTRY_DIR/$ENTRY_DATE.txt"
     if [ -f "$ENTRY_FILE" ]; then
-        # Confirm deletion
         printf "${YELLOW}Are you sure you want to delete the entry for %s? (y/N): ${RESET}" "$ENTRY_DATE"
         read -r confirmation
         case "$confirmation" in
@@ -149,7 +146,6 @@ delete_entry() {
 edit_entry() {
     ENTRY_DATE="$1"
 
-    # Default to today's entry if no date is provided
     if [ -z "$ENTRY_DATE" ]; then
         ENTRY_DATE="$TODAY"
     fi
@@ -157,7 +153,6 @@ edit_entry() {
     ENTRY_FILE="$ENTRY_DIR/$ENTRY_DATE.txt"
 
     if [ -f "$ENTRY_FILE" ]; then
-        # Open the entry file with the default editor (use $EDITOR or fallback to nano)
         "${EDITOR:-nano}" "$ENTRY_FILE" || error_exit "Failed to open editor for '$ENTRY_FILE'."
         printf "${GREEN}Entry for %s updated.${RESET}\n" "$ENTRY_DATE"
     else
@@ -193,7 +188,6 @@ case "$1" in
         list_entries
         ;;
     -r | -read)
-        # Pass the second argument if provided, else pass empty string
         read_entry "$2"
         ;;
     -d | delete)
